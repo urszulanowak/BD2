@@ -1,0 +1,33 @@
+# Ignore Visual Studio temporary files, build results, and
+# user-specific files
+.vs/
+bin/
+obj/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Auto-generated files
+Generated\ Files/
+
+# Windows image file caches
+Thumbs.db
+Thumbs.db:encryptable
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# VS Code directories
+.vscode/
+.history/
+
+# Package directories
+node_modules/
+jspm_packages/
