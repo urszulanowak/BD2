@@ -1,6 +1,3 @@
-using System;
-using System.Windows.Forms;
-
 public class XmlProcessorForm : Form
 {
     private readonly XmlProcessor _xmlProcessor;
@@ -9,10 +6,15 @@ public class XmlProcessorForm : Form
     private ListBox _documentListBox;
     private Button _deleteButton;
     private string _selectedDocumentName;
-    private TextBox _xpathTextBox;
+    private TextBox _xpathTextBoxSearch;
+    private TextBox _xpathTextBoxNewContent;
     private TextBox _newValueTextBox;
     private Button _searchButton;
     private Button _updateButton;
+    private TextBox _displayContentTextBox;
+    private Label xpathLabel2; // Przeniesione na poziom klasy
+    private Label newValueLabel; // Przeniesione na poziom klasy
+    private Label infoLabel;
 
     public XmlProcessorForm()
     {
@@ -50,10 +52,15 @@ public class XmlProcessorForm : Form
         Button saveButton = new Button
         {
             Text = "Zapisz dokument",
-            Width = 120
+            Width = 120,
         };
         saveButton.Click += SaveButton_Click;
 
+        Label listLabel = new Label
+        {
+            Text = "Lista dokumentów w bazie danych:",
+            AutoSize = true
+        };
 
         _documentListBox = new ListBox
         {
@@ -62,11 +69,25 @@ public class XmlProcessorForm : Form
         };
         _documentListBox.SelectedIndexChanged += DocumentListBox_SelectedIndexChanged;
 
+        _searchButton = new Button
+        {
+            Text = "Wyszukaj węzeł/atrybut",
+            Width = 120
+        };
+        _searchButton.Click += SearchButton_Click;
+
+        _updateButton = new Button
+        {
+            Text = "Zaktualizuj węzeł/atrybut",
+            Width = 120,
+            Visible = false
+        };
+        _updateButton.Click += UpdateButton_Click;
+
         FlowLayoutPanel panel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.TopDown,
-            Padding = new Padding(10)
+            FlowDirection = FlowDirection.TopDown            
         };
 
         _deleteButton = new Button
@@ -83,43 +104,59 @@ public class XmlProcessorForm : Form
             AutoSize = true
         };
 
-        _xpathTextBox = new TextBox
+        _xpathTextBoxSearch = new TextBox
         {
             Width = 250
         };
 
-        Label newValueLabel = new Label
+        infoLabel = new Label{
+            Text = "Wybierz element z listy",
+            Margin = new Padding(0, 0, 0, 10),
+            AutoSize = true,
+            Visible = true
+        };
+
+        xpathLabel2 = new Label // Zmienna na poziomie klasy
+        {
+            Text = "XPath:",
+            AutoSize = true,
+            Visible = false
+        };
+
+        _xpathTextBoxNewContent = new TextBox
+        {
+            Width = 250,
+            Visible = false
+        };
+
+        newValueLabel = new Label // Zmienna na poziomie klasy
         {
             Text = "Nowa wartość:",
-            AutoSize = true
+            AutoSize = true,
+            Visible = false
         };
 
         _newValueTextBox = new TextBox
         {
-            Width = 250
+            Width = 250,
+            Visible = false
         };
 
-        _searchButton = new Button
+        _displayContentTextBox = new TextBox
         {
-            Text = "Wyszukaj",
-            Width = 120
+            Multiline = true,
+            Height = 200,
+            Width = 250,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Vertical, // Dodanie pionowych pasków przewijania
+            Visible = false
         };
-        _searchButton.Click += SearchButton_Click;
 
-        _updateButton = new Button
-        {
-            Text = "Zaktualizuj",
-            Width = 120
-        };
-        _updateButton.Click += UpdateButton_Click;
-
-        panel.Controls.AddRange(new Control[] {nameLabel, _nameTextBox, contentLabel, _contentTextBox, saveButton, _documentListBox, _deleteButton, xpathLabel, _xpathTextBox, newValueLabel, _newValueTextBox, _searchButton, _updateButton });
-
-        // panel.Controls.AddRange(new Control[] { nameLabel, _nameTextBox, contentLabel, _contentTextBox, saveButton, _deleteButton, _documentListBox });
+        panel.Controls.AddRange(new Control[] { nameLabel, _nameTextBox, contentLabel, _contentTextBox, saveButton, listLabel, _documentListBox, infoLabel, _deleteButton, xpathLabel, _xpathTextBoxSearch, _searchButton, xpathLabel2, _xpathTextBoxNewContent, newValueLabel, _newValueTextBox, _updateButton, _displayContentTextBox });
 
         Controls.Add(panel);
         Text = "Przetwarzanie dokumentów XML";
-        ClientSize = new System.Drawing.Size(600, 400);
+        ClientSize = new System.Drawing.Size(550, 400);
     }
 
     private void LoadDocumentList()
@@ -141,6 +178,8 @@ public class XmlProcessorForm : Form
             _xmlProcessor.SaveXmlDocument(name, content);
             MessageBox.Show("Dokument XML został pomyślnie zapisany w bazie danych.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
             LoadDocumentList(); // Odświeżenie listy dokumentów
+            _nameTextBox.Text = ""; // Wyczyszczenie zawartości pola nazwy dokumentu
+            _contentTextBox.Text = ""; // Wyczyszczenie zawartości pola zawartości dokumentu
         }
         catch (InvalidOperationException ex)
         {
@@ -161,7 +200,14 @@ public class XmlProcessorForm : Form
                 _xmlProcessor.DeleteXmlDocument(_selectedDocumentName);
                 MessageBox.Show("Dokument XML został pomyślnie usunięty.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadDocumentList(); // Odświeżenie listy dokumentów
+                infoLabel.Visible = true;
                 _deleteButton.Visible = false; // Ukrycie przycisku po usunięciu dokumentu
+                _displayContentTextBox.Visible = false;
+                xpathLabel2.Visible = false;
+                _xpathTextBoxNewContent.Visible = false;
+                newValueLabel.Visible = false;
+                _newValueTextBox.Visible = false;
+                _updateButton.Visible = false;
             }
             catch (InvalidOperationException ex)
             {
@@ -179,30 +225,80 @@ public class XmlProcessorForm : Form
         if (_documentListBox.SelectedIndex >= 0)
         {
             _selectedDocumentName = _documentListBox.SelectedItem.ToString();
+            infoLabel.Visible = false;
             _deleteButton.Visible = true; // Wyświetlenie przycisku usuwania po wybraniu dokumentu
+
+            // Pobierz zawartość wybranego dokumentu i wyświetl w _displayContentTextBox
+            _displayContentTextBox.Visible = true;
+            xpathLabel2.Visible = true;
+            _xpathTextBoxNewContent.Visible = true;
+            newValueLabel.Visible = true;
+            _newValueTextBox.Visible = true;
+            _updateButton.Visible = true;
+            string content = _xmlProcessor.GetXmlDocumentContent(_selectedDocumentName);
+            _displayContentTextBox.Text = content;
         }
         else
         {
             _selectedDocumentName = null;
             _deleteButton.Visible = false; // Ukrycie przycisku, jeśli nie wybrano dokumentu
+            infoLabel.Visible = true;
+            _displayContentTextBox.Visible = false;
+            xpathLabel2.Visible = false;
+            _xpathTextBoxNewContent.Visible = false;
+            newValueLabel.Visible = false;
+            _newValueTextBox.Visible = false;
+            _updateButton.Visible = false;
         }
     }
 
     private void SearchButton_Click(object sender, EventArgs e)
     {
-        string xpath = _xpathTextBox.Text;
-        string result = _xmlProcessor.SearchXmlDocuments(xpath);
-        MessageBox.Show(result, "Wyniki wyszukiwania", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        string xpath = _xpathTextBoxSearch.Text.Trim();
+        if (string.IsNullOrEmpty(xpath))
+        {
+            MessageBox.Show("Proszę podać XPath do wyszukania.", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        try
+        {
+            string result = _xmlProcessor.SearchXmlDocuments(xpath);
+            MessageBox.Show(result, "Wyniki wyszukiwania", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (InvalidOperationException ex)
+        {
+            MessageBox.Show(ex.Message, "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Wystąpił nieoczekiwany błąd: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _xpathTextBoxSearch.Text = "";
+        }
     }
 
     private void UpdateButton_Click(object sender, EventArgs e)
     {
         string name = _selectedDocumentName; // użyj wybranej nazwy dokumentu z listy
-        string xpath = _xpathTextBox.Text;
+        string xpath = _xpathTextBoxNewContent.Text;
         string newValue = _newValueTextBox.Text;
         try
         {
             _xmlProcessor.UpdateXmlDocument(name, xpath, newValue);
+            _deleteButton.Visible = false; // Ukrycie przycisku, jeśli nie wybrano dokumentu
+            infoLabel.Visible = true;
+            _displayContentTextBox.Visible = false;
+            xpathLabel2.Visible = false;
+            _xpathTextBoxNewContent.Visible = false;
+            newValueLabel.Visible = false;
+            _newValueTextBox.Visible = false;
+            _updateButton.Visible = false;
+            _xpathTextBoxNewContent.Text = "";
+            _newValueTextBox.Text = "";
+            LoadDocumentList();
             MessageBox.Show("Dokument XML został pomyślnie zaktualizowany.", "Informacja", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception ex)
@@ -210,11 +306,7 @@ public class XmlProcessorForm : Form
             MessageBox.Show($"Błąd podczas aktualizacji dokumentu XML: {ex.Message}", "Błąd", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
-}
 
-class Program
-{
-    [STAThread]
     static void Main()
     {
         Application.EnableVisualStyles();
@@ -222,169 +314,3 @@ class Program
         Application.Run(new XmlProcessorForm());
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// using System;
-
-// class Program
-// {
-//     static void Main()
-//     {
-//         // Utwórz instancję XmlProcessor
-//         var xmlProcessor = new XmlProcessor();
-
-//         // Zapisz przykładowy dokument XML
-//         string documentName = "ExampleDocument";
-//         string documentContent = "<root><element>Some content</element></root>";
-//         xmlProcessor.SaveXmlDocument(documentName, documentContent);
-
-//         string documentName2 = "ExampleDocument2";
-//         string documentContent2 = "<root><element>A little bit longer content</element></root>";
-//         xmlProcessor.SaveXmlDocument(documentName2, documentContent2);
-
-//         Console.WriteLine("Dokument XML został pomyślnie zapisany w bazie danych.");
-
-//         xmlProcessor.DeleteXmlDocument("ExampleDocument");
-//     }
-// }
-
-// using Microsoft.Extensions.Hosting;
-
-// namespace MyProject
-// {
-//     public class Program
-//     {
-//         public static void Main(string[] args)
-//         {
-//             CreateHostBuilder(args).Build().Run();
-//         }
-
-//         public static IHostBuilder CreateHostBuilder(string[] args) =>
-//             Host.CreateDefaultBuilder(args)
-//                 .ConfigureWebHostDefaults(webBuilder =>
-//                 {
-//                     webBuilder.UseStartup<Startup>();
-//                 });
-//     }
-// }
-
-// using System;
-// using System;
-// using System.Reflection;
-// using Microsoft.AspNetCore.Hosting;
-// using Microsoft.Extensions.Hosting;
-// using System.Security.Permissions;
-
-// [assembly:AssemblyVersionAttribute("1.0.2000.0")]
-
-// namespace MyProject
-// {
-//     public class Program
-//     {
-//         public static void Main(string[] args)
-//         {
-//             CreateHostBuilder(args).Build().Run();
-//         }
-
-//         public static IHostBuilder CreateHostBuilder(string[] args) =>
-//             Host.CreateDefaultBuilder(args)
-//                 .ConfigureWebHostDefaults(webBuilder =>
-//                 {
-//                     webBuilder.UseStartup<Startup>();
-//                 });
-//     }
-// }
-
-
-// using System;
-
-// class Program
-// {
-//     static void Main()
-//     {
-//         // Utwórz instancję XmlProcessor
-//         var xmlProcessor = new XmlProcessor();
-
-//         Console.WriteLine("Wybierz opcję:");
-//         Console.WriteLine("1. Zapisz nowy dokument XML");
-//         Console.WriteLine("2. Usuń istniejący dokument XML");
-//         Console.WriteLine("0. Wyjdź");
-
-//         while (true)
-//         {
-//             Console.Write("Wybierz opcję: ");
-//             string option = Console.ReadLine();
-
-//             switch (option)
-//             {
-//                 case "1":
-//                     Console.Write("Podaj nazwę nowego dokumentu XML: ");
-//                     string documentName = Console.ReadLine();
-//                     Console.Write("Podaj zawartość nowego dokumentu XML: ");
-//                     string documentContent = Console.ReadLine();
-//                     xmlProcessor.SaveXmlDocument(documentName, documentContent);
-//                     Console.WriteLine("Dokument XML został pomyślnie zapisany w bazie danych.");
-//                     break;
-
-//                 case "2":
-//                     Console.Write("Podaj nazwę dokumentu XML do usunięcia: ");
-//                     string documentNameToDelete = Console.ReadLine();
-//                     xmlProcessor.DeleteXmlDocument(documentNameToDelete);
-//                     break;
-
-//                 case "0":
-//                     Console.WriteLine("Zakończono program.");
-//                     return;
-
-//                 default:
-//                     Console.WriteLine("Niepoprawna opcja. Wybierz jeszcze raz.");
-//                     break;
-//             }
-//         }
-//     }
-// }

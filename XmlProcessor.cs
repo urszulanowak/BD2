@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Xml;
+using System.Text;
 
 public class XmlProcessor : IXmlProcessor
 {
@@ -80,27 +82,75 @@ public class XmlProcessor : IXmlProcessor
         return names;
     }
 
-    public string SearchXmlDocuments(string xpath)
+    public string GetXmlDocumentContent(string name)
     {
+        string content = "";
+
         using (SqlConnection connection = new SqlConnection(_connectionString))
         {
-            // Bezpośrednie wstawienie literału do zapytania SQL
-            string query = $"SELECT Name, Content.query('{xpath}') as Result FROM XmlDocuments WHERE Content.exist('{xpath}') = 1";
+            string query = "SELECT Content FROM XmlDocuments WHERE Name = @Name";
             using (SqlCommand command = new SqlCommand(query, connection))
             {
+                command.Parameters.AddWithValue("@Name", name);
                 connection.Open();
-                using (SqlDataReader reader = command.ExecuteReader())
+                object result = command.ExecuteScalar();
+                if (result != null)
                 {
-                    string result = "";
-                    while (reader.Read())
-                    {
-                        string name = reader["Name"].ToString();
-                        string content = reader["Result"].ToString();
-                        result += $"Name: {name}\nContent: {content}\n\n";
-                    }
-                    return result;
+                    content = result.ToString();
                 }
             }
+        }
+
+        return content;
+    }
+
+    public string SearchXmlDocuments(string xpath)
+    {
+        try
+        {
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                // Najpierw sprawdzamy, czy węzły XPath istnieją w którymkolwiek dokumencie
+                string checkQuery = $"SELECT COUNT(*) FROM XmlDocuments WHERE Content.exist('{xpath}') = 1";
+                using (SqlCommand checkCommand = new SqlCommand(checkQuery, connection))
+                {
+                    connection.Open();
+                    int matchingDocuments = (int)checkCommand.ExecuteScalar();
+
+                    if (matchingDocuments == 0)
+                    {
+                        throw new InvalidOperationException("Węzły XPath nie istnieją w żadnym dokumencie XML.");
+                    }
+                }
+
+                // Następnie przeprowadzamy właściwe wyszukiwanie
+                string query = $"SELECT Name, Content.query('{xpath}') as Result FROM XmlDocuments WHERE Content.exist('{xpath}') = 1";
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        StringBuilder resultBuilder = new StringBuilder();
+                        while (reader.Read())
+                        {
+                            string content = reader["Result"].ToString();
+                            resultBuilder.AppendLine(content);
+                        }
+                        return resultBuilder.ToString();
+                    }
+                }
+            }
+        }
+        catch (SqlException ex)
+        {
+            throw new InvalidOperationException("Błąd SQL podczas wyszukiwania dokumentów XML.", ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw ex; // Przekazujemy wyjątek dalej
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Wystąpił błąd podczas wyszukiwania dokumentów XML: {ex.Message}", ex);
         }
     }
 
@@ -135,8 +185,6 @@ public class XmlProcessor : IXmlProcessor
         }
     }
 
-
-
     private bool IsValidXml(string xml)
     {
         try
@@ -151,4 +199,3 @@ public class XmlProcessor : IXmlProcessor
         }
     }
 }
-
