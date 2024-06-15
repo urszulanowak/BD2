@@ -8,4 +8,5 @@ public interface IXmlProcessor
     List<string> GetXmlDocumentNames();
     string SearchXmlDocuments(string xpath);
     void UpdateXmlDocument(string name, string xpath, string newValue);
+    public string GetXmlDocumentContent(string name);
 }

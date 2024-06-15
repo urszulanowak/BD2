@@ -13,6 +13,20 @@ public class XmlProcessor : IXmlProcessor
         _connectionString = "Server=DESKTOP-FMPII3S\\SQLEXPRESS;Database=BD2;Trusted_Connection=True;";
     }
 
+    public bool IsValidXml(string xml)
+    {
+        try
+        {
+            XmlDocument doc = new XmlDocument();
+            doc.LoadXml(xml);
+            return true;
+        }
+        catch (XmlException)
+        {
+            return false;
+        }
+    }
+
     public void SaveXmlDocument(string name, string content)
     {
         if (!IsValidXml(content))
@@ -185,17 +199,5 @@ public class XmlProcessor : IXmlProcessor
         }
     }
 
-    private bool IsValidXml(string xml)
-    {
-        try
-        {
-            XmlDocument doc = new XmlDocument();
-            doc.LoadXml(xml);
-            return true;
-        }
-        catch (XmlException)
-        {
-            return false;
-        }
-    }
+
 }
